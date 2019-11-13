@@ -1,0 +1,1 @@
+php cas单点登录。抽离了session

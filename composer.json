@@ -1,0 +1,23 @@
+{
+    "name": "php-cas-core",
+    "description": "thrift java/php rpc files",
+    "type": "library",
+    "require": {
+        "php": ">=7.1",
+        "jasig/phpcas": "~1.3"
+    },
+    "require-dev": {
+
+    },
+    "autoload": {
+        "psr-4": {
+            "PhpCasCore\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "zyb",
+            "email": "449063862@qq.com"
+        }
+    ]
+}

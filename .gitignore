@@ -1,0 +1,6 @@
+src/java/target/*
+src/java/out/*
+src/java/target/classes/*
+.idea/*
+.DS_Store
+*.class
