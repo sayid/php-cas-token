@@ -1,6 +1,8 @@
 <?php
 namespace PhpCasCore;
 
+use DOMNodeList;
+
 class Cas
 {
     private $_user;
@@ -30,7 +32,7 @@ class Cas
 
 
     private function serviceValidate($url, $ticket) {
-
+        $url = $this->getURL($url);
         $validate_url = $this->_cas_server . $this->_cas_path . "/serviceValidate?service=".urlencode($url)."&ticket=".urlencode($ticket);
         $client = new GuzzleClient(['base_uri' => $this->_cas_server, 'timeout' => 10.0]);
         $form_params = [
@@ -88,17 +90,153 @@ class Cas
                     'Ticket not validated'. $validate_url
                 );
             } else {
-                return
+                $user =
                     trim(
                         $success_elements->item(0)->getElementsByTagName("user")->item(0)->nodeValue
                     );
+                return $user;
             }
         } else {
             throw new \Exception(
                 'Ticket not validated'. $validate_url
             );
         }
+    }
 
+    private $_attributes = array();
+
+    /**
+     * Set an array of attributes
+     *
+     * @param array $attributes a key value array of attributes
+     *
+     * @return void
+     */
+    public function setAttributes($attributes)
+    {
+        $this->_attributes = $attributes;
+    }
+
+    /**
+     * This method will parse the DOM and pull out the attributes from the XML
+     * payload and put them into an array, then put the array into the session.
+     *
+     * @param DOMNodeList $success_elements payload of the response
+     *
+     * @return bool true when successfull, halt otherwise by calling
+     * CAS_Client::_authError().
+     */
+    private function _readExtraAttributesCas20($success_elements)
+    {
+        $extra_attributes = array();
+
+        if ( $success_elements->item(0)->getElementsByTagName("attributes")->length != 0) {
+            $attr_nodes = $success_elements->item(0)
+                ->getElementsByTagName("attributes");
+            if ($attr_nodes->item(0)->hasChildNodes()) {
+                // Nested Attributes
+                foreach ($attr_nodes->item(0)->childNodes as $attr_child) {
+                    $this->_addAttributeToArray(
+                        $extra_attributes, $attr_child->localName,
+                        $attr_child->nodeValue
+                    );
+                }
+            }
+        } else {
+            $childnodes = $success_elements->item(0)->childNodes;
+            foreach ($childnodes as $attr_node) {
+                switch ($attr_node->localName) {
+                    case 'user':
+                    case 'proxies':
+                    case 'proxyGrantingTicket':
+                        break;
+                    default:
+                        if (strlen(trim($attr_node->nodeValue))) {
+                            $this->_addAttributeToArray(
+                                $extra_attributes, $attr_node->localName,
+                                $attr_node->nodeValue
+                            );
+                        }
+                }
+            }
+        }
+
+        if (!count($extra_attributes)
+            && $success_elements->item(0)->getElementsByTagName("attribute")->length != 0
+        ) {
+            $attr_nodes = $success_elements->item(0)
+                ->getElementsByTagName("attribute");
+            $firstAttr = $attr_nodes->item(0);
+            if (!$firstAttr->hasChildNodes()
+                && $firstAttr->hasAttribute('name')
+                && $firstAttr->hasAttribute('value')
+            ) {
+                // Nested Attributes
+                foreach ($attr_nodes as $attr_node) {
+                    if ($attr_node->hasAttribute('name')
+                        && $attr_node->hasAttribute('value')
+                    ) {
+                        $this->_addAttributeToArray(
+                            $extra_attributes, $attr_node->getAttribute('name'),
+                            $attr_node->getAttribute('value')
+                        );
+                    }
+                }
+            }
+        }
+        $this->setAttributes($extra_attributes);
+        return true;
+    }
+
+    /**
+     * Add an attribute value to an array of attributes.
+     *
+     * @param array  &$attributeArray reference to array
+     * @param string $name            name of attribute
+     * @param string $value           value of attribute
+     *
+     * @return void
+     */
+    private function _addAttributeToArray(array &$attributeArray, $name, $value)
+    {
+        // If multiple attributes exist, add as an array value
+        if (isset($attributeArray[$name])) {
+            // Initialize the array with the existing value
+            if (!is_array($attributeArray[$name])) {
+                $existingValue = $attributeArray[$name];
+                $attributeArray[$name] = array($existingValue);
+            }
+
+            $attributeArray[$name][] = trim($value);
+        } else {
+            $attributeArray[$name] = trim($value);
+        }
+    }
+
+    private function _removeParameterFromQueryString($parameterName, $queryString)
+    {
+        $parameterName	= preg_quote($parameterName);
+        return preg_replace(
+            "/&$parameterName(=[^&]*)?|^$parameterName(=[^&]*)?&?/",
+            '', $queryString
+        );
+    }
+
+    public function getURL($request_uri)
+    {
+        $request_uri	= explode('?', $request_uri, 2);
+        $final_uri		= $request_uri[0];
+
+        if (isset($request_uri[1]) && $request_uri[1]) {
+            $query_string= $this->_removeParameterFromQueryString('ticket', $request_uri[1]);
+
+            // If the query string still has anything left,
+            // append it to the final URI
+            if ($query_string !== '') {
+                $final_uri	.= "?$query_string";
+            }
+        }
+        return $final_uri;
     }
 
     /**
