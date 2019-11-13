@@ -105,8 +105,12 @@ class Cas
      * 单点登录
      * @param Request $request
      */
-    public function casLogout(string $url)
+    public function casLogout(string $url = "")
     {
-        getGouuseCore()->ResponseLib->redirect($this->_cas_server.$this->_cas_path."/logout?service=".urlencode($url));
+        if ($url) {
+            getGouuseCore()->ResponseLib->redirect($this->_cas_server.$this->_cas_path."/logout?service=".urlencode($url));
+        } else {
+            getGouuseCore()->ResponseLib->redirect($this->_cas_server.$this->_cas_path."/logout");
+        }
     }
 }
