@@ -100,12 +100,12 @@ class Cas
     }
 
 
-    private function serviceValidate($url, $ticket) {
-        $url = $this->getURL($url);
-        $validate_url = $this->_cas_server . $this->_cas_path . "/serviceValidate?service=".urlencode($url)."&ticket=".urlencode($ticket);
+    private function serviceValidate() {
+        $url = $this->getURL();
+        $validate_url = $this->_cas_server . $this->_cas_path . "/serviceValidate?service=".urlencode($url)."&ticket=".urlencode($this->_ticket);
         $client = new GuzzleClient(['base_uri' => $this->_cas_server, 'timeout' => 10.0]);
         $form_params = [
-            'body' => $this->_buildSAMLPayload($ticket),
+            'body' => $this->_buildSAMLPayload($this->_ticket),
             'http_errors' => false,
             'headers' => [
                 'soapaction:http://www.oasis-open.org/committees/security',
@@ -404,7 +404,7 @@ class Cas
     public function isAuthenticated($renew=false)
     {
         if ($this->hasTicket()) {
-            $this->serviceValidate($renew);
+            $this->serviceValidate();
         } else {
             $url = $this->getURL();
             $url = $this->_cas_server.$this->_cas_path."/login?service=".urlencode($url);
