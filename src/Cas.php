@@ -52,8 +52,6 @@ class Cas
 
     private $_cas_path;
 
-    private $_client_url;
-
     private $_attributes = array();
 
     private $_ticket;
@@ -64,11 +62,10 @@ class Cas
 
     private $redirectCall = null;//callable 自定义跳转函数，兼容Swoole
 
-    public function __construct(string $cas_server, string $cas_path, string $_client_url)
+    public function __construct(string $cas_server, string $cas_path)
     {
         $this->_cas_path = $cas_path;
         $this->_cas_server = $cas_server;
-        $this->_client_url = $_client_url;
     }
 
     public function setRequest(array $get, array $server)
@@ -335,12 +332,11 @@ class Cas
         //$final_uri = ($this->_isHttps()) ? 'https' : 'http';
         //$final_uri .= '://';
 
-        $final_uri = $this->_client_url;//$this->_getClientUrl();
-        $request_uri	= explode('?', $this->_SERVER['REQUEST_URI'], 2);
-        $final_uri		.= $request_uri[0];
+        $final_uri = $this->_callbackUrl;//$this->_getClientUrl();
+        $request_uri	= explode('?', $this->_, 2);
 
-        if (isset($request_uri[1]) && $request_uri[1]) {
-            $query_string= $this->_removeParameterFromQueryString('ticket', $request_uri[1]);
+        if ($this->_queryString) {
+            $query_string= $this->_removeParameterFromQueryString('ticket', $this->_queryString);
 
             // If the query string still has anything left,
             // append it to the final URI
@@ -414,5 +410,17 @@ class Cas
             $url = $this->_cas_server.$this->_cas_path."/login?service=".urlencode($url);
             $this->redirect($url);
         }
+    }
+
+    private $_queryString;
+
+    public function setQueryString(string $queryString)
+    {
+        $this->_queryString = $queryString;
+    }
+
+    private $_callbackUrl;
+    public function callBackUrl($url) {
+        $this->_callBackUrl = $url;
     }
 }
