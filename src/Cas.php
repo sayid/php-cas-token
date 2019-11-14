@@ -3,6 +3,47 @@ namespace PhpCasCore;
 
 use DOMNodeList;
 
+/**
+ * XML header for SAML POST
+ */
+define("SAML_XML_HEADER", '<?xml version="1.0" encoding="UTF-8"?>');
+
+/**
+ * SOAP envelope for SAML POST
+ */
+define("SAML_SOAP_ENV", '<SOAP-ENV:Envelope xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/"><SOAP-ENV:Header/>');
+
+/**
+ * SOAP body for SAML POST
+ */
+define("SAML_SOAP_BODY", '<SOAP-ENV:Body>');
+
+/**
+ * SAMLP request
+ */
+define("SAMLP_REQUEST", '<samlp:Request xmlns:samlp="urn:oasis:names:tc:SAML:1.0:protocol"  MajorVersion="1" MinorVersion="1" RequestID="_192.168.16.51.1024506224022" IssueInstant="2002-06-19T17:03:44.022Z">');
+define("SAMLP_REQUEST_CLOSE", '</samlp:Request>');
+
+/**
+ * SAMLP artifact tag (for the ticket)
+ */
+define("SAML_ASSERTION_ARTIFACT", '<samlp:AssertionArtifact>');
+
+/**
+ * SAMLP close
+ */
+define("SAML_ASSERTION_ARTIFACT_CLOSE", '</samlp:AssertionArtifact>');
+
+/**
+ * SOAP body close
+ */
+define("SAML_SOAP_BODY_CLOSE", '</SOAP-ENV:Body>');
+
+/**
+ * SOAP envelope close
+ */
+define("SAML_SOAP_ENV_CLOSE", '</SOAP-ENV:Envelope>');
+
 class Cas
 {
     private $_user;
@@ -11,17 +52,42 @@ class Cas
 
     private $_cas_path;
 
+    private $_client_url;
+
     private $_attributes = array();
 
-    private static $cas_client = null;
+    private $_ticket;
 
-    public function __construct(string $cas_server, string $cas_path)
+    private $_SERVER;
+
+    private $_GET;
+
+    private $redirectCall = null;//callable 自定义跳转函数，兼容Swoole
+
+    public function __construct(string $cas_server, string $cas_path, string $_client_url)
     {
         $this->_cas_path = $cas_path;
         $this->_cas_server = $cas_server;
-        if (empty($cas_server)) {
-            self::$cas_client = new \phpCAS();
+        $this->_client_url = $_client_url;
+    }
+
+    public function setRequest(array $get, array $server)
+    {
+        $this->_SERVER = $server;
+        $this->_GET = $get;
+        if (isset($this->_GET['ticket'])) {
+            $this->_ticket = $this->_GET['ticket'];
         }
+    }
+
+    private function hasTicket()
+    {
+        return empty($this->_ticket) ? false : true;
+    }
+
+    public function setRedirectCall(callable $redirect)
+    {
+        $this->redirectCall = $redirect;
     }
 
 
@@ -221,6 +287,40 @@ class Cas
         }
     }
 
+    private function _getClientUrl()
+    {
+        if (!empty($this->_SERVER['HTTP_X_FORWARDED_HOST'])) {
+            // explode the host list separated by comma and use the first host
+            $hosts = explode(',', $this->_SERVER['HTTP_X_FORWARDED_HOST']);
+            // see rfc7239#5.3 and rfc7230#2.7.1: port is in HTTP_X_FORWARDED_HOST if non default
+            return $hosts[0];
+        } else if (!empty($this->_SERVER['HTTP_X_FORWARDED_SERVER'])) {
+            $server_url = $this->_SERVER['HTTP_X_FORWARDED_SERVER'];
+        } else {
+            if (empty($this->_SERVER['SERVER_NAME'])) {
+                $server_url = $this->_SERVER['HTTP_HOST'];
+            } else {
+                $server_url = $this->_SERVER['SERVER_NAME'];
+            }
+        }
+        if (!strpos($server_url, ':')) {
+            if (empty($this->_SERVER['HTTP_X_FORWARDED_PORT'])) {
+                $server_port = $this->_SERVER['SERVER_PORT'];
+            } else {
+                $ports = explode(',', $this->_SERVER['HTTP_X_FORWARDED_PORT']);
+                $server_port = $ports[0];
+            }
+
+            if ( ($this->_isHttps() && $server_port!=443)
+                || (!$this->_isHttps() && $server_port!=80)
+            ) {
+                $server_url .= ':';
+                $server_url .= $server_port;
+            }
+        }
+        return $server_url;
+    }
+    
     private function _removeParameterFromQueryString($parameterName, $queryString)
     {
         $parameterName	= preg_quote($parameterName);
@@ -230,10 +330,14 @@ class Cas
         );
     }
 
-    public function getURL($request_uri)
+    public function getURL()
     {
-        $request_uri	= explode('?', $request_uri, 2);
-        $final_uri		= $request_uri[0];
+        $final_uri = ($this->_isHttps()) ? 'https' : 'http';
+        $final_uri .= '://';
+
+        $final_uri .= $this->_getClientUrl();
+        $request_uri	= explode('?', $this->_SERVER['REQUEST_URI'], 2);
+        $final_uri		.= $request_uri[0];
 
         if (isset($request_uri[1]) && $request_uri[1]) {
             $query_string= $this->_removeParameterFromQueryString('ticket', $request_uri[1]);
@@ -244,19 +348,71 @@ class Cas
                 $final_uri	.= "?$query_string";
             }
         }
+        $this->setURL($final_uri);
         return $final_uri;
     }
 
+     public function setURL($url)
+     {
+         $this->_url = $url;
+     }
+
+    private function _isHttps()
+    {
+        if (!empty($this->_SERVER['HTTP_X_FORWARDED_PROTO'])) {
+            return ($this->_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https');
+        } elseif (!empty($this->_SERVER['HTTP_X_FORWARDED_PROTOCOL'])) {
+            return ($this->_SERVER['HTTP_X_FORWARDED_PROTOCOL'] === 'https');
+        } elseif ( isset($this->_SERVER['HTTPS'])
+            && !empty($this->_SERVER['HTTPS'])
+            && strcasecmp($this->_SERVER['HTTPS'], 'off') !== 0
+        ) {
+            return true;
+        }
+        return false;
+
+    }
+
     /**
-     * 单点登录
-     * @param Request $request
+     * @param string|null $url
+     * @param callable|null $redirect 自定义跳转函数function($url) { swoole.redirect($url)}
      */
     public function casLogout(string $url = null)
     {
         if ($url) {
-            getGouuseCore()->ResponseLib->redirect($this->_cas_server.$this->_cas_path."/logout?service=".urlencode($url));
+            $url = $this->_cas_server.$this->_cas_path."/logout?service=".urlencode($url);
         } else {
-            getGouuseCore()->ResponseLib->redirect($this->_cas_server.$this->_cas_path."/logout");
+            $url = $this->_cas_server.$this->_cas_path."/logout";
+        }
+        $this->redirect($url);
+    }
+
+    /**
+     * @param string|null $url
+     * @param callable|null $redirect 自定义跳转函数function($url) { swoole.redirect($url)}
+     */
+    private function redirect(string $url = null)
+    {
+        if ($this->redirectCall == null) {
+            header("location:".$url);
+        } else {
+            call_user_func($this->redirectCall, [$url]);
+        }
+    }
+
+    /**
+     * @param bool $renew
+     * @param callable|null $redirect $redirect 自定义跳转函数function($url) { swoole.redirect($url)}
+     * @throws \Exception
+     */
+    public function isAuthenticated($renew=false)
+    {
+        if ($this->hasTicket()) {
+            $this->serviceValidate($renew);
+        } else {
+            $url = $this->getURL();
+            $url = $this->_cas_server.$this->_cas_path."/login?service=".urlencode($url);
+            $this->redirect($url);
         }
     }
 }
