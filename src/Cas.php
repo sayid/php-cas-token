@@ -109,7 +109,6 @@ class Cas
     private function serviceValidate() {
         $url = $this->getURL();
         $validate_url = $this->_cas_server . $this->_cas_path . "/serviceValidate?service=".urlencode($url)."&ticket=".urlencode($this->_ticket);
-        echo $validate_url;
         $client = new GuzzleClient(['base_uri' => $this->_cas_server, 'timeout' => 10.0]);
         $form_params = [
             'body' => $this->_buildSAMLPayload($this->_ticket),
