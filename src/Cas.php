@@ -414,7 +414,7 @@ class Cas
 
     private $_queryString;
 
-    public function setQueryString(string $queryString)
+    public function setQueryString(string $queryString = null)
     {
         $this->_queryString = $queryString;
     }
