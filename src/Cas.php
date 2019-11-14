@@ -120,7 +120,7 @@ class Cas
         $response = $client->request('POST', $validate_url, $form_params);
         $text_response = $response->getBody()->getContents();
 
-        $dom = new DOMDocument();
+        $dom = new \DOMDocument();
         // Fix possible whitspace problems
         $dom->preserveWhiteSpace = false;
         // CAS servers should only return data in utf-8
