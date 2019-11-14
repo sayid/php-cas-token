@@ -2,6 +2,7 @@
 namespace PhpCasCore;
 
 use DOMNodeList;
+use GuzzleHttp\Client as GuzzleClient;
 
 /**
  * XML header for SAML POST
