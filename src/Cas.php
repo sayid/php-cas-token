@@ -396,7 +396,7 @@ class Cas
         if ($this->redirectCall == null) {
             header("location:".$url);
         } else {
-            call_user_func($this->redirectCall, [$url]);
+            call_user_func($this->redirectCall, $url);
         }
     }
 
