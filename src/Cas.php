@@ -333,7 +333,6 @@ class Cas
         //$final_uri .= '://';
 
         $final_uri = $this->_callbackUrl;//$this->_getClientUrl();
-        $request_uri	= explode('?', $this->_, 2);
 
         if ($this->_queryString) {
             $query_string= $this->_removeParameterFromQueryString('ticket', $this->_queryString);
