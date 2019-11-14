@@ -11,11 +11,17 @@ class Cas
 
     private $_cas_path;
 
+    private $_attributes = array();
+
+    private static $cas_client = null;
+
     public function __construct(string $cas_server, string $cas_path)
     {
         $this->_cas_path = $cas_path;
         $this->_cas_server = $cas_server;
-        $cas = new \phpCAS();
+        if (empty($cas_server)) {
+            self::$cas_client = new \phpCAS();
+        }
     }
 
 
@@ -94,6 +100,7 @@ class Cas
                     trim(
                         $success_elements->item(0)->getElementsByTagName("user")->item(0)->nodeValue
                     );
+                $this->_user = $user;
                 return $user;
             }
         } else {
@@ -103,7 +110,7 @@ class Cas
         }
     }
 
-    private $_attributes = array();
+
 
     /**
      * Set an array of attributes
@@ -243,7 +250,7 @@ class Cas
      * 单点登录
      * @param Request $request
      */
-    public function casLogout(string $url = "")
+    public function casLogout(string $url = null)
     {
         if ($url) {
             getGouuseCore()->ResponseLib->redirect($this->_cas_server.$this->_cas_path."/logout?service=".urlencode($url));
