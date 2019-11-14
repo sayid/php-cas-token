@@ -63,7 +63,7 @@ class Cas
 
     private $redirectCall = null;//callable 自定义跳转函数，兼容Swoole
 
-    private $_callbackUrl;
+    private $_redirectBackUrl;
 
     private $_queryString;
 
@@ -109,6 +109,7 @@ class Cas
     private function serviceValidate() {
         $url = $this->getURL();
         $validate_url = $this->_cas_server . $this->_cas_path . "/serviceValidate?service=".urlencode($url)."&ticket=".urlencode($this->_ticket);
+        echo $validate_url;
         $client = new GuzzleClient(['base_uri' => $this->_cas_server, 'timeout' => 10.0]);
         $form_params = [
             'body' => $this->_buildSAMLPayload($this->_ticket),
@@ -323,7 +324,7 @@ class Cas
         }
         return $server_url;
     }
-    
+
     private function _removeParameterFromQueryString($parameterName, $queryString)
     {
         $parameterName	= preg_quote($parameterName);
@@ -338,7 +339,7 @@ class Cas
         //$final_uri = ($this->_isHttps()) ? 'https' : 'http';
         //$final_uri .= '://';
 
-        $final_uri = $this->_callbackUrl;//$this->_getClientUrl();
+        $final_uri = $this->_redirectBackUrl;//$this->_getClientUrl();
 
         if ($this->_queryString) {
             $query_string= $this->_removeParameterFromQueryString('ticket', $this->_queryString);
@@ -353,10 +354,10 @@ class Cas
         return $final_uri;
     }
 
-     public function setURL($url)
-     {
-         $this->_url = $url;
-     }
+    public function setURL($url)
+    {
+        $this->_url = $url;
+    }
 
     private function _isHttps()
     {
@@ -409,14 +410,13 @@ class Cas
     public function isAuthenticated($renew=false)
     {
         if ($this->hasTicket()) {
-            $this->serviceValidate();
+            return $this->serviceValidate();
         } else {
             $url = $this->getURL();
             $url = $this->_cas_server.$this->_cas_path."/login?service=".urlencode($url);
             $this->redirect($url);
         }
     }
-
 
 
     public function setQueryString(string $queryString = null)
@@ -426,6 +426,6 @@ class Cas
 
 
     public function callBackUrl($url) {
-        $this->_callBackUrl = $url;
+        $this->_redirectBackUrl = $url;
     }
 }
