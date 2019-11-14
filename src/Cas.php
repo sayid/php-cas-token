@@ -101,6 +101,7 @@ class Cas
                         $success_elements->item(0)->getElementsByTagName("user")->item(0)->nodeValue
                     );
                 $this->_user = $user;
+                $this->_readExtraAttributesCas20($success_elements);
                 return $user;
             }
         } else {
