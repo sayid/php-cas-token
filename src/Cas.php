@@ -335,7 +335,7 @@ class Cas
         $final_uri = ($this->_isHttps()) ? 'https' : 'http';
         $final_uri .= '://';
 
-        $final_uri .= $this->_getClientUrl();
+        $final_uri .= $this->_client_url;//$this->_getClientUrl();
         $request_uri	= explode('?', $this->_SERVER['REQUEST_URI'], 2);
         $final_uri		.= $request_uri[0];
 
