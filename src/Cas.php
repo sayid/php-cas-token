@@ -63,6 +63,11 @@ class Cas
 
     private $redirectCall = null;//callable 自定义跳转函数，兼容Swoole
 
+    private $_callbackUrl;
+
+    private $_queryString;
+
+
     public function __construct(string $cas_server, string $cas_path)
     {
         $this->_cas_path = $cas_path;
@@ -412,14 +417,14 @@ class Cas
         }
     }
 
-    private $_queryString;
+
 
     public function setQueryString(string $queryString = null)
     {
         $this->_queryString = $queryString;
     }
 
-    private $_callbackUrl;
+
     public function callBackUrl($url) {
         $this->_callBackUrl = $url;
     }
