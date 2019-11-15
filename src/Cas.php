@@ -194,6 +194,11 @@ class Cas
         $this->_attributes = $attributes;
     }
 
+    public function getAttributes()
+    {
+        return $this->_attributes;
+    }
+
     /**
      * This method will parse the DOM and pull out the attributes from the XML
      * payload and put them into an array, then put the array into the session.
