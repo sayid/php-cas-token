@@ -1,4 +1,4 @@
-
+目前只支持cas2.0
 
         $cas = new \PhpCasCore\Cas(env("CAS_SERVER"), env("CAS_PATH"));
         $func = function ($url) {
